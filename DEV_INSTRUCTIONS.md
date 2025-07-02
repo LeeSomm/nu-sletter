@@ -8,10 +8,14 @@
 
 ## Current Status (as of 2025-07-02)
 
-- **Phase 1 (Core Setup):** Mostly complete. SvelteKit project is set up, Firebase is configured, and basic authentication is implemented. The database schema is defined, but security rules need to be finalized.
-- **Phase 2 (Question System):** Not started.
+- **Phase 1 (Core Setup):** Mostly complete. SvelteKit project is set up, Firebase is configured, and basic authentication (email/password and Google Sign-In) is implemented. The database schema is defined, but security rules need to be finalized.
+- **Phase 2 (Question System):** In progress. The response submission page now prevents users from making multiple submissions per week, allowing them to edit their existing response instead. The system also ensures that a user-submitted question is only added to the database on the initial submission, not on subsequent updates. A new admin page for question management has been created at `/admin/questions`. The logic for assigning unique weekly questions to users has been implemented in `src/lib/server/questions.ts`.
 - **Phase 3 (Newsletter Generation):** In progress. The core LLM integration for generating newsletter summaries is functional using the Google Generative AI API. The next steps are to build out the email templating and sending mechanism.
 - **`src/lib/server/newsletter.ts`:** This file now successfully uses the `@google/genai` library to generate a newsletter summary from a list of responses. The previous implementation using the deprecated `google/generative-ai` has been updated.
+- **`src/lib/server/questions.ts`:** The logic for assigning unique weekly questions to users has been implemented.
+- **`src/routes/respond/+page.svelte`:** This page now handles both creating and updating user responses. It checks for an existing response for the current week and allows users to edit it if one exists. A new question is only submitted to the `questions` collection on the first submission.
+- **`src/routes/login/+page.svelte`:** The login page now supports both email/password and Google Sign-In authentication. It also creates a new user document in Firestore on the first login.
+- **`src/routes/admin/questions/+page.svelte`:** A new page for managing questions has been created. It allows admins to view, add, edit, activate/deactivate, and delete questions.
 
 ## Core Functionality
 
@@ -70,7 +74,8 @@
   preferences: {
     emailNotifications: boolean,
     timezone: string
-  }
+  },
+  answeredQuestions: string[]
 }
 ```
 
@@ -96,7 +101,10 @@
   weekEnd: timestamp,
   status: 'active' | 'collecting' | 'completed',
   newsletterSent: boolean,
-  participants: string[] // array of uids
+  participants: string[], // array of uids
+  assignments: {
+    [userId: string]: string // questionId
+  }
 }
 ```
 
@@ -165,13 +173,13 @@
 #### Phase 1: Core Setup
 - ✅ Set up SvelteKit project with Svelte 5
 - ✅ Configure Firebase project and initialize SDK
-- ✅ Implement basic authentication
+- ✅ Implement basic authentication (Email/password and Google Sign-In)
 - 🟡 Create database schema and security rules (Schema defined, rules need implementation)
 
 #### Phase 2: Question System
-- ⬜ Build question management system
-- ⬜ Implement weekly question assignment
-- ⬜ Create response submission interface
+- ✅ Build question management system (Response submission logic and admin page are implemented)
+- ✅ Implement weekly question assignment
+- 🟡 Create response submission interface (Initial version complete)
 - ⬜ Set up basic user dashboard
 
 #### Phase 3: Newsletter Generation
@@ -186,16 +194,6 @@
 - ⬜ Implement proper error handling and logging
 - ⬜ Add analytics and monitoring
 
-### Environment Variables Needed
-```
-const firebaseConfig = 
-
-GOOGLE_API_KEY=
-EMAIL_SERVICE_API_KEY=
-EMAIL_FROM_ADDRESS=
-
-ADMIN_EMAIL=
-```
 
 ### Security Considerations
 - Implement Firebase Security Rules for Firestore
