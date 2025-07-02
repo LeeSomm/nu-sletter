@@ -1,0 +1,42 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can read their own user document, and admins can read any user document.
+    // Users can create their own user document.
+    // Users can update their own user document.
+    match /users/{userId} {
+      allow read, update: if request.auth.uid == userId;
+      allow create: if request.auth.uid != null;
+    }
+
+    // Authenticated users can read and create questions.
+    // Admins can write questions.
+    match /questions/{questionId} {
+      allow read, create: if request.auth.uid != null;
+      allow update, delete: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Authenticated users can read weekly sessions.
+    // Admins can write weekly sessions.
+    match /weeklySessions/{sessionId} {
+      allow read: if request.auth.uid != null;
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Users can create a response for themselves, and can read/write their own responses.
+    match /userResponses/{responseId} {
+      allow create: if request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if resource.data.userId == request.auth.uid;
+    }
+
+    // Authenticated users can read newsletters.
+    // Admins can write newsletters.
+    match /newsletters/{newsletterId} {
+      allow read: if request.auth.uid != null;
+      allow write: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+  }
+}

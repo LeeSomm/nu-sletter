@@ -5,8 +5,26 @@ node_modules
 .vercel
 .netlify
 .wrangler
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# svelte-kit
 /.svelte-kit
 /build
+/dev
+.DS_Store
+
+# private
+.env
+.env.*
+!.env.example
+!.env.development.local
+!.env.test.local
+!.env.production.local
+
 
 # OS
 .DS_Store
@@ -21,3 +39,60 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Firebase
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+.firebase/
+firebase-admin-key.json
+service-account*.json
+*-firebase-adminsdk-*.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+pglite-debug.log
+
+# Security & API Keys
+.env.local
+.env.production
+.env.staging
+*.pem
+*.p12
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# IDE
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# OS generated files
+.DS_Store?
+ehthumbs.db
+Icon?
+Thumbs.db
+
