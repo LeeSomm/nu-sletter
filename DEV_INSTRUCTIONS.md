@@ -2,55 +2,35 @@
 
 ## Project Overview
 
-**Name:** Nu-sletter  
-**Purpose:** A weekly newsletter service for long-distance friends to stay connected through shared questions and responses.
-**Side Note:** "Nu-sletter" is a play on words for Sigma Nu, which was my friends and my fraternity in college.
-
-## Current Status (as of 2025-07-02)
-
-- **Phase 1 (Core Setup):** Mostly complete. SvelteKit project is set up, Firebase is configured, and basic authentication (email/password and Google Sign-In) is implemented. The database schema is defined, but security rules need to be finalized.
-- **Phase 2 (Question System):** In progress. The response submission page now prevents users from making multiple submissions per week, allowing them to edit their existing response instead. The system also ensures that a user-submitted question is only added to the database on the initial submission, not on subsequent updates. A new admin page for question management has been created at `/admin/questions`. The logic for assigning unique weekly questions to users has been implemented in `src/lib/server/questions.ts`.
-- **Phase 3 (Newsletter Generation):** In progress. The core LLM integration for generating newsletter summaries is functional using the Google Generative AI API. The next steps are to build out the email templating and sending mechanism.
-- **`src/lib/server/newsletter.ts`:** This file now successfully uses the `@google/genai` library to generate a newsletter summary from a list of responses. The previous implementation using the deprecated `google/generative-ai` has been updated.
-- **`src/lib/server/questions.ts`:** The logic for assigning unique weekly questions to users has been implemented.
-- **`src/routes/respond/+page.svelte`:** This page now handles both creating and updating user responses. It checks for an existing response for the current week and allows users to edit it if one exists. A new question is only submitted to the `questions` collection on the first submission.
-- **`src/routes/login/+page.svelte`:** The login page now supports both email/password and Google Sign-In authentication. It also creates a new user document in Firestore on the first login.
-- **`src/routes/admin/questions/+page.svelte`:** A new page for managing questions has been created. It allows admins to view, add, edit, activate/deactivate, and delete questions.
+**Name:** Nu-sletter
+**Purpose:** A newsletter service that allows users to create and manage their own newsletters, invite subscribers, and automatically generate issues based on responses to a set of questions.
 
 ## Core Functionality
 
 ### User Authentication
-- Implement Firebase Authentication with two methods:
-  - Email/password authentication
-  - Google OAuth integration
-- Create login/signup pages with proper error handling
-- Implement authentication state management throughout the app
+- Firebase Authentication with Email/Password and Google OAuth.
+- Users can sign up, log in, and manage their accounts.
 
-### Weekly Question System
-- Each user receives a unique question every week
-- Users have until Sunday (end of week) to submit their response
-- Questions are drawn from three sources:
-  1. User-submitted questions from previous weeks
-  2. Hard-coded questions (admin-curated)
-  3. LLM-generated questions
-- Implement question assignment logic to ensure uniqueness per user per week
+### Newsletter Management
+- Users can create multiple, distinct newsletters.
+- Each newsletter has a unique name, a prompt for the AI, and an owner.
+- Users can edit and delete the newsletters they own.
 
-### User Question Submission
-- Users must submit their own question each week alongside their response
-- Submitted questions enter the question pool for future weeks
-- Include validation to ensure question quality and appropriateness
+### Subscriber Management
+- Newsletter owners can add and remove subscribers for each of their newsletters.
+- Subscribers can view newsletter issues.
 
-### Newsletter Generation & Distribution
-- Every Monday, automatically:
-  1. Collect all responses from the previous week
-  2. Generate newsletter summary using LLM integration
-  3. Email newsletter to all participants
-- Implement fallback handling for users who didn't respond
+### Question Management
+- Each newsletter has its own set of questions.
+- Newsletter owners can add and delete questions for their newsletters.
 
-### Question Database Management
-- Store questions with metadata (source type, creation date, usage count)
-- Implement question rotation to avoid repetition
-- Admin interface for managing hard-coded questions
+### Response Collection
+- Subscribers can submit responses to the questions for a specific newsletter issue.
+
+### Newsletter Generation
+- Newsletter owners can trigger the generation of a new issue.
+- The system uses the Google Generative AI API to create a summary based on the collected responses and the newsletter's prompt.
+- The generated content is saved as a new issue in the newsletter's subcollection.
 
 ## Technical Implementation
 
@@ -59,173 +39,130 @@
 - **Backend:** SvelteKit server-side functions
 - **Database:** Firebase Firestore
 - **Authentication:** Firebase Auth
-- **Hosting:** Consider Vercel, Netlify, or Firebase Hosting
+- **Hosting:** Vercel, Netlify, or Firebase Hosting
 
 ### Database Schema
 
 #### Users Collection
 ```javascript
+// Enhanced Users Collection
 {
   uid: string,
   email: string,
   displayName: string,
   createdAt: timestamp,
   isActive: boolean,
+  isAdmin: boolean,
   preferences: {
     emailNotifications: boolean,
     timezone: string
   },
-  answeredQuestions: string[]
+  newsletterMemberships: {
+    [newsletterId: string]: {
+      joinedAt: timestamp,
+      isActive: boolean,
+      answeredQuestions: string[] // move here from root level
+    }
+  }
 }
 ```
 
 #### Questions Collection
 ```javascript
+// Enhanced Questions Collection  
 {
   id: string,
   text: string,
   source: 'user' | 'admin' | 'llm',
-  createdBy: string, // uid if user-submitted
+  createdBy: string,
+  newsletterId: string, // required field
   createdAt: timestamp,
   usageCount: number,
   isActive: boolean,
-  category?: string
-}
-```
-
-#### Weekly Sessions Collection
-```javascript
-{
-  id: string, // e.g., "2024-W01"
-  weekStart: timestamp,
-  weekEnd: timestamp,
-  status: 'active' | 'collecting' | 'completed',
-  newsletterSent: boolean,
-  participants: string[], // array of uids
-  assignments: {
-    [userId: string]: string // questionId
-  }
+  category?: string,
+  tags?: string[] // for better categorization
 }
 ```
 
 #### User Responses Collection
 ```javascript
+// Enhanced User Responses Collection
 {
   id: string,
+  newsletterId: string, // required field
   sessionId: string,
   userId: string,
   questionId: string,
   response: string,
-  submittedQuestion: string,
+  submittedQuestion?: string, // optional if they submit a question
   submittedAt: timestamp,
-  wordCount: number
+  wordCount: number,
+  isPublic: boolean // privacy control
 }
 ```
 
 #### Newsletters Collection
 ```javascript
+// Enhanced Newsletters Collection
 {
   id: string,
-  sessionId: string,
-  content: string, // HTML content
-  summary: string, // LLM-generated summary
-  generatedAt: timestamp,
-  sentAt: timestamp,
-  recipients: string[]
+  name: string,
+  description: string,
+  prompt: string,
+  owners: string[],
+  moderators: string[], // additional role
+  settings: {
+    isPublic: boolean,
+    requireApproval: boolean,
+    maxMembers?: number,
+    questionSubmissionRequired: boolean
+  },
+  createdAt: timestamp,
+  isActive: boolean
 }
 ```
 
-### Key Features to Implement
+#### Sessions Collection
+```javascript
+// Redesigned Sessions Collection
+{
+  id: string, // UUID instead of date-based
+  newsletterId: string,
+  weekIdentifier: string, // e.g., "2024-W01" for queries
+  weekStart: timestamp,
+  weekEnd: timestamp,
+  status: 'active' | 'pending' | 'completed',
+  newsletterSent: boolean,
+  participantCount: number, // denormalized for efficiency
+  createdAt: timestamp,
+  generatedNewsletter?: string
+}
+```
 
-#### Authentication Flow
-- Create authentication store using Svelte runes
-- Implement route protection for authenticated users
-- Handle authentication state persistence
-
-#### Question Assignment Algorithm
-- Weekly cron job (or scheduled function) to assign questions
-- Ensure each user gets a unique question they haven't answered before
-- Balance question sources (user/admin/LLM generated)
-
-#### Response Collection System
-- Form for users to submit their weekly response
-- Include character/word limits and validation
-- Show deadline countdown and submission status
-
-#### LLM Integration
-- Integrate with Google Generative AI API for:
-  - Newsletter summary generation
-  - Question generation when pool is low
-- Implement proper error handling and fallbacks
-
-#### Email System
-- Integrate with email service (SendGrid, Resend, or similar)
-- Create HTML email templates for newsletters
-- Handle email delivery failures and bounces
-
-#### Admin Dashboard
-- Interface for managing questions
-- View weekly participation rates
-- Manual newsletter generation/resending capabilities
-
-### Development Phases
-
-#### Phase 1: Core Setup
-- ✅ Set up SvelteKit project with Svelte 5
-- ✅ Configure Firebase project and initialize SDK
-- ✅ Implement basic authentication (Email/password and Google Sign-In)
-- 🟡 Create database schema and security rules (Schema defined, rules need implementation)
-
-#### Phase 2: Question System
-- ✅ Build question management system (Response submission logic and admin page are implemented)
-- ✅ Implement weekly question assignment
-- 🟡 Create response submission interface (Initial version complete)
-- ⬜ Set up basic user dashboard
-
-#### Phase 3: Newsletter Generation
-- 🟡 Integrate LLM service for content generation (Core summary generation is working)
-- ⬜ Build email template system
-- ⬜ Implement automated newsletter creation and sending
-- ⬜ Add email service integration
-
-#### Phase 4: Polish & Features
-- ⬜ Create admin dashboard
-- ⬜ Add user preferences and settings
-- ⬜ Implement proper error handling and logging
-- ⬜ Add analytics and monitoring
-
+#### Question Assignments Collection
+```javascript
+// New: Question Assignments Collection
+{
+  id: string,
+  sessionId: string,
+  newsletterId: string,
+  userId: string,
+  questionId: string,
+  assignedAt: timestamp,
+  answered: boolean
+}
+```
 
 ### Security Considerations
-- Implement Firebase Security Rules for Firestore
-- Validate all user inputs server-side
-- Rate limit question submissions and responses
-- Protect admin endpoints with proper authentication
-- Sanitize user content before including in newsletters
-
-### Deployment Checklist
-- Set up CI/CD pipeline
-- Configure environment variables
-- Set up monitoring and error tracking
-- Configure email service and verify sending domain
-- Test automated weekly processes
-- Set up backup procedures for user data
+- Firebase Security Rules are implemented to protect data based on ownership and subscription.
+- All user inputs should be validated server-side.
+- Admin-level functionality is not yet implemented.
 
 ### Future Enhancement Ideas
-- Mobile app version
-- Rich text editor for responses
-- Photo sharing capabilities
-- Question categories and themes
-- Analytics dashboard for engagement
-- Integration with calendar apps for reminders
-- Social features (liking responses, comments)
-
-## Getting Started
-
-1. Initialize SvelteKit project with TypeScript
-2. Install and configure Firebase SDK
-3. Set up basic authentication flow
-4. Create initial database structure
-5. Build minimal viable product with core question/response cycle
-6. Gradually add newsletter generation and email features
-
-Remember to test thoroughly with a small group of friends before full deployment!
+- Automated issue generation and email distribution.
+- A more robust system for managing "active" issues for responses.
+- Rich text editor for responses and issue content.
+- User preferences and notification settings.
+- Analytics dashboard for newsletter engagement.
+- Integration with calendar apps for reminders.
+- Social features (liking responses, comments).

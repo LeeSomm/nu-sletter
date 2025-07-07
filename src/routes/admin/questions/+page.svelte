@@ -64,7 +64,7 @@
       try {
         const newQuestion = {
           text,
-          source: 'admin',
+          source: 'admin' as const,
           createdBy: 'admin', // Or get current admin user
           createdAt: serverTimestamp(),
           usageCount: 0,

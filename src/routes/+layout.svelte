@@ -61,11 +61,18 @@
             <div class="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
               <div class="py-1" role="menu" tabindex="-1" onmouseleave={closeAdminDropdown}>
                 <a 
-                  href="/admin/newsletter" 
+                  href="/admin/newsletters" 
                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                   onclick={closeAdminDropdown}
                 >
-                  Newsletter
+                  Newsletters
+                </a>
+                <a 
+                  href="/admin/generate" 
+                  class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onclick={closeAdminDropdown}
+                >
+                  Generate
                 </a>
                 <a 
                   href="/admin/questions" 

@@ -1,80 +1,163 @@
+import { adminDb } from './admin.js';
+import { FieldValue } from 'firebase-admin/firestore';
+import { hasNewsletterAccess } from './newsletters.js';
 
-import { db } from '$lib/firebase/admin';
-import { collection, getDocs, query, where, doc, setDoc, writeBatch } from 'firebase/firestore';
-
-interface Question {
+export interface Question {
   id: string;
   text: string;
+  source: 'user' | 'admin' | 'llm';
+  createdBy: string;
+  newsletterId: string;
+  createdAt: any;
+  usageCount: number;
+  isActive: boolean;
+  category?: string;
+  tags?: string[];
 }
 
-interface User {
-  uid: string;
-  answeredQuestions: string[];
+/**
+ * Gets questions for a newsletter (server-side)
+ */
+export async function getQuestions(newsletterId: string, userId: string): Promise<Question[]> {
+  // Verify user has access to this newsletter
+  if (!await hasNewsletterAccess(newsletterId, userId, 'read')) {
+    throw new Error('Unauthorized: User cannot access questions for this newsletter');
+  }
+
+  const snapshot = await adminDb
+    .collection('questions')
+    .where('newsletterId', '==', newsletterId)
+    .where('isActive', '==', true)
+    .get();
+
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Question));
 }
 
-export async function assignWeeklyQuestions() {
-  console.log("Starting weekly question assignment...");
+/**
+ * Adds a question to a newsletter (server-side)
+ */
+export async function addQuestion(
+  newsletterId: string,
+  questionText: string,
+  createdBy: string,
+  source: 'user' | 'admin' | 'llm' = 'user',
+  category?: string,
+  tags?: string[]
+): Promise<Question> {
+  // Verify user has write access to this newsletter
+  if (!await hasNewsletterAccess(newsletterId, createdBy, 'write')) {
+    throw new Error('Unauthorized: User cannot add questions to this newsletter');
+  }
 
-  try {
-    // 1. Fetch all active questions
-    const questionsQuery = query(collection(db, 'questions'), where('isActive', '==', true));
-    const questionsSnapshot = await getDocs(questionsQuery);
-    const allQuestions: Question[] = questionsSnapshot.docs.map(doc => ({ id: doc.id, text: doc.data().text }));
+  const questionData = {
+    text: questionText,
+    source,
+    createdBy,
+    newsletterId,
+    createdAt: FieldValue.serverTimestamp(),
+    usageCount: 0,
+    isActive: true,
+    ...(category && { category }),
+    ...(tags && { tags })
+  };
 
-    // 2. Fetch all active users
-    const usersQuery = query(collection(db, 'users'), where('isActive', '==', true));
-    const usersSnapshot = await getDocs(usersQuery);
-    const allUsers: User[] = usersSnapshot.docs.map(doc => ({ uid: doc.id, answeredQuestions: doc.data().answeredQuestions || [] }));
+  const questionRef = await adminDb.collection('questions').add(questionData);
+  
+  return {
+    id: questionRef.id,
+    ...questionData
+  } as Question;
+}
 
-    const batch = writeBatch(db);
-    const weeklyAssignments: { [userId: string]: string } = {};
+/**
+ * Deletes a question (server-side)
+ */
+export async function deleteQuestion(questionId: string, userId: string): Promise<void> {
+  // Get the question to verify ownership
+  const questionDoc = await adminDb.collection('questions').doc(questionId).get();
+  
+  if (!questionDoc.exists) {
+    throw new Error('Question not found');
+  }
 
-    // 3. For each user, find a question they haven't answered
-    for (const user of allUsers) {
-      const availableQuestions = allQuestions.filter(q => !user.answeredQuestions.includes(q.id));
+  const questionData = questionDoc.data()!;
+  
+  // Verify user has write access to the newsletter
+  if (!await hasNewsletterAccess(questionData.newsletterId, userId, 'write')) {
+    throw new Error('Unauthorized: User cannot delete questions from this newsletter');
+  }
 
-      if (availableQuestions.length > 0) {
-        const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-        const assignedQuestion = availableQuestions[randomIndex];
-        
-        weeklyAssignments[user.uid] = assignedQuestion.id;
+  await adminDb.collection('questions').doc(questionId).update({ isActive: false });
+}
 
-        // Update user's answered questions list
-        const userRef = doc(db, 'users', user.uid);
-        batch.update(userRef, {
-          answeredQuestions: [...user.answeredQuestions, assignedQuestion.id]
-        });
-
-      } else {
-        // Handle case where user has answered all available questions
-        // Maybe generate a new one with LLM or reuse the oldest one
-        console.warn(`User ${user.uid} has answered all available questions.`);
-        // For now, we'll just assign a random one from the whole pool
-        const randomIndex = Math.floor(Math.random() * allQuestions.length);
-        weeklyAssignments[user.uid] = allQuestions[randomIndex].id;
-      }
+/**
+ * Increments question usage count (server-side)
+ */
+export async function incrementQuestionUsage(questionId: string): Promise<void> {
+  const questionRef = adminDb.collection('questions').doc(questionId);
+  
+  await adminDb.runTransaction(async (transaction) => {
+    const questionDoc = await transaction.get(questionRef);
+    
+    if (!questionDoc.exists) {
+      throw new Error('Question not found');
     }
 
-    // 4. Store assignments in a new weekly session document
-    const weekId = `${new Date().getFullYear()}-W${getWeekNumber(new Date())}`;
-    const sessionRef = doc(db, 'weeklySessions', weekId);
-    batch.set(sessionRef, {
-      assignments: weeklyAssignments,
-      createdAt: new Date(),
-    });
-
-    await batch.commit();
-    console.log(`Successfully assigned questions for week ${weekId}`);
-
-  } catch (error) {
-    console.error("Error assigning weekly questions:", error);
-  }
+    const currentCount = questionDoc.data()?.usageCount || 0;
+    transaction.update(questionRef, { usageCount: currentCount + 1 });
+  });
 }
 
-function getWeekNumber(d: Date): number {
-  d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((d.valueOf() - yearStart.valueOf()) / 86400000) + 1) / 7);
-  return weekNo;
+/**
+ * Gets a single question by ID (server-side)
+ */
+export async function getQuestion(questionId: string, userId: string): Promise<Question | null> {
+  const questionDoc = await adminDb.collection('questions').doc(questionId).get();
+  
+  if (!questionDoc.exists) {
+    return null;
+  }
+
+  const questionData = questionDoc.data()!;
+  
+  // Verify user has access to the newsletter this question belongs to
+  if (!await hasNewsletterAccess(questionData.newsletterId, userId, 'read')) {
+    throw new Error('Unauthorized: User cannot access this question');
+  }
+
+  return {
+    id: questionDoc.id,
+    ...questionData
+  } as Question;
+}
+
+/**
+ * Updates a question (server-side)
+ */
+export async function updateQuestion(
+  questionId: string,
+  updates: Partial<Question>,
+  userId: string
+): Promise<void> {
+  // Get the question to verify ownership
+  const questionDoc = await adminDb.collection('questions').doc(questionId).get();
+  
+  if (!questionDoc.exists) {
+    throw new Error('Question not found');
+  }
+
+  const questionData = questionDoc.data()!;
+  
+  // Verify user has write access to the newsletter
+  if (!await hasNewsletterAccess(questionData.newsletterId, userId, 'write')) {
+    throw new Error('Unauthorized: User cannot update questions in this newsletter');
+  }
+
+  // Remove fields that shouldn't be updated directly
+  const { id, createdAt, createdBy, newsletterId, ...allowedUpdates } = updates;
+
+  await adminDb.collection('questions').doc(questionId).update(allowedUpdates);
 }

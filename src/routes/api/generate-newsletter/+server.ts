@@ -1,20 +1,36 @@
 
 import { json } from '@sveltejs/kit';
 import { adminDb } from '$lib/server/admin';
-import { generateNewsletterSummary } from '$lib/server/newsletter';
+import { generateNewsletter } from '$lib/server/newsletterGenerator';
+import { createIssue } from '$lib/server/newsletters';
 
-export async function POST() {
+export async function POST({ request }) {
   try {
-    // For now, we'll fetch all responses.
-    // In a real app, we'd filter by the current week's session.
-    const snapshot = await adminDb.collection('userResponses').get();
-    const responses = snapshot.docs.map(doc => doc.data().response as string);
+    const { newsletterId, issueId } = await request.json();
+
+    if (!newsletterId || !issueId) {
+      return json({ error: 'newsletterId and issueId are required.' }, { status: 400 });
+    }
+
+    const snapshot = await adminDb.collection('newsletters').doc(newsletterId).collection('issues').doc(issueId).collection('responses').get();
+    const responses = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        questionId: data.questionId,
+        response: data.response,
+      };
+    });
 
     if (responses.length === 0) {
       return json({ error: 'No responses found to generate a newsletter.' }, { status: 400 });
     }
 
-    const summary = await generateNewsletterSummary(responses);
+    const summary = await generateNewsletter(newsletterId, responses);
+
+    // Store the generated summary in the issue document
+    await adminDb.collection('newsletters').doc(newsletterId).collection('issues').doc(issueId).update({
+      content: summary,
+    });
 
     return json({ summary });
   } catch (error: any) {

@@ -11,7 +11,10 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
-		"lint": "prettier --check . && eslint ."
+		"lint": "prettier --check . && eslint .",
+		"upload-dummy-data": "node scripts/upload-dummy-data-simple.js",
+		"upload-dummy-data:emulator": "node scripts/upload-dummy-data-simple.js --emulator",
+		"upload-dummy-data:admin": "node scripts/upload-dummy-data.js"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -39,7 +42,9 @@
 	},
 	"dependencies": {
 		"@google/genai": "^1.8.0",
+		"dotenv": "^17.0.1",
 		"firebase": "^11.10.0",
-		"firebase-admin": "^13.4.0"
+		"firebase-admin": "^13.4.0",
+		"ts-node": "^10.9.2"
 	}
 }
