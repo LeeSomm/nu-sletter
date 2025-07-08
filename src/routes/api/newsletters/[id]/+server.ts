@@ -3,7 +3,8 @@ import { withAuth, handleApiError } from '$lib/server/auth.js';
 import {
   getNewsletter,
   updateNewsletter,
-  deleteNewsletter
+  deleteNewsletter,
+  hasNewsletterAccess
 } from '$lib/server/newsletters.js';
 
 // GET /api/newsletters/[id] - Get a specific newsletter
@@ -21,10 +22,8 @@ export const GET = withAuth(async (event, user) => {
       return json({ error: 'Newsletter not found' }, { status: 404 });
     }
 
-    // Check if user has access (owners, moderators, or members)
-    const hasAccess = newsletter.owners.includes(user.uid) || 
-                     newsletter.moderators.includes(user.uid) ||
-                     newsletter.settings.isPublic;
+    // Check if user has access using the new membership system
+    const hasAccess = await hasNewsletterAccess(newsletterId, user.uid, 'read');
 
     if (!hasAccess) {
       return json({ error: 'Access denied' }, { status: 403 });
