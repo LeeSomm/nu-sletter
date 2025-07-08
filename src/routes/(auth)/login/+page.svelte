@@ -1,9 +1,9 @@
 
 <script lang="ts">
-  import { auth, db } from '$lib/firebase';
+  import { auth } from '$lib/firebase';
   import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-  import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
   import { goto } from '$app/navigation';
+  import { userApi } from '$lib/api';
 
   let email = '';
   let password = '';
@@ -31,28 +31,32 @@
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check if user already exists in Firestore
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        // Create a new user document
-        await setDoc(userDocRef, {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          createdAt: serverTimestamp(),
-          isActive: true,
-          preferences: {
-            emailNotifications: true,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-        });
+      // Try to get existing user profile first
+      try {
+        await userApi.getCurrentUser();
+        // User profile exists, proceed to dashboard
+      } catch (userError: any) {
+        // User profile doesn't exist (404), create it
+        if (userError.message?.includes('User not found') || userError.message?.includes('404')) {
+          await userApi.create({
+            uid: user.uid,
+            email: user.email || '',
+            displayName: user.displayName || '',
+            preferences: {
+              emailNotifications: true,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+            }
+          });
+        } else {
+          // Some other error occurred
+          throw userError;
+        }
       }
       
       goto('/');
     } catch (err: any) {
-      error = err.message;
+      console.error('Google sign-in error:', err);
+      error = err.message || 'Failed to sign in with Google';
     } finally {
       isSubmitting = false;
     }

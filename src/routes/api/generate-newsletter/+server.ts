@@ -2,7 +2,7 @@
 import { json } from '@sveltejs/kit';
 import { adminDb } from '$lib/server/admin';
 import { generateNewsletter } from '$lib/server/newsletterGenerator';
-import { createIssue } from '$lib/server/newsletters';
+// import { createIssue } from '$lib/server/newsletters';
 
 export async function POST({ request }) {
   try {

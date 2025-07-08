@@ -187,3 +187,31 @@ export const membersApi = {
   remove: (newsletterId: string, userId: string) => 
     api.delete(`/api/newsletters/${newsletterId}/members?userId=${userId}`),
 };
+
+/**
+ * User API functions
+ */
+export const userApi = {
+  // Create user profile in Firestore
+  create: (data: {
+    uid: string;
+    email: string;
+    displayName?: string;
+    preferences?: {
+      emailNotifications?: boolean;
+      timezone?: string;
+    };
+  }) => api.post('/api/users', data),
+  
+  // Get user profile
+  get: (uid: string) => api.get(`/api/users/${uid}`),
+  
+  // Update user profile
+  update: (uid: string, data: any) => api.put(`/api/users/${uid}`, data),
+  
+  // Delete user profile
+  delete: (uid: string) => api.delete(`/api/users/${uid}`),
+  
+  // Get current user profile
+  getCurrentUser: () => api.get('/api/users/me'),
+};
