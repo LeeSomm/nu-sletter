@@ -55,9 +55,9 @@
     </div>
 
     <div class="tabs tabs-boxed mb-6">
-      <a class="tab" class:tab-active={activeTab === 'issues'} on:click={() => activeTab = 'issues'}>Issues</a>
-      <a class="tab" class:tab-active={activeTab === 'subscribers'} on:click={() => activeTab = 'subscribers'}>Subscribers</a>
-      <a class="tab" class:tab-active={activeTab === 'questions'} on:click={() => activeTab = 'questions'}>Questions</a>
+      <button type="button" class="tab" class:tab-active={activeTab === 'issues'} on:click={() => activeTab = 'issues'}>Issues</button>
+      <button type="button" class="tab" class:tab-active={activeTab === 'subscribers'} on:click={() => activeTab = 'subscribers'}>Subscribers</button>
+      <button type="button" class="tab" class:tab-active={activeTab === 'questions'} on:click={() => activeTab = 'questions'}>Questions</button>
     </div>
 
     <div>
