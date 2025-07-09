@@ -20,7 +20,6 @@ export const POST = withAuth(async (event, user) => {
 
     // Prepare user data according to schema
     const userData = {
-      uid: body.uid,
       email: body.email || user.email,
       displayName: body.displayName || user.name || '',
       createdAt: new Date(),
