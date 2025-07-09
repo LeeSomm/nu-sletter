@@ -126,7 +126,27 @@
   function formatDate(timestamp: any) {
     if (!timestamp) return 'Unknown';
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      let date: Date;
+      
+      if (timestamp.toDate) {
+        // Firestore Timestamp (shouldn't happen after API serialization, but keep for safety)
+        date = timestamp.toDate();
+      } else if (typeof timestamp === 'string') {
+        // ISO string from API or dummy data
+        date = new Date(timestamp);
+      } else if (timestamp instanceof Date) {
+        // Already a Date object
+        date = timestamp;
+      } else {
+        // Try to convert whatever it is
+        date = new Date(timestamp);
+      }
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+      }
+      
       return date.toLocaleDateString();
     } catch {
       return 'Unknown';

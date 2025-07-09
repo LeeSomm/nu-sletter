@@ -67,24 +67,6 @@
   </div>
 {:else if userProfile?.isAdmin}
   <div class="min-h-screen bg-gray-50">
-    <!-- Admin Header -->
-    <header class="bg-red-800 text-white shadow-lg">
-      <div class="container mx-auto px-4 py-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-4">
-            <h1 class="text-xl font-bold">Admin Panel</h1>
-            <span class="text-red-200 text-sm">Nu-sletter</span>
-          </div>
-          <div class="flex items-center space-x-4">
-            <span class="text-sm">Welcome, {userProfile.displayName || userProfile.email}</span>
-            <a href="/" class="bg-red-700 hover:bg-red-600 px-3 py-1 rounded text-sm">
-              Back to App
-            </a>
-          </div>
-        </div>
-      </div>
-    </header>
-
     <div class="flex">
       <!-- Sidebar Navigation -->
       <nav class="w-64 bg-white shadow-lg min-h-screen">

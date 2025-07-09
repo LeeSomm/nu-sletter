@@ -7,12 +7,17 @@ export const GET = withAdminAuth(async (event, user) => {
   try {
     const usersSnapshot = await adminDb.collection('users').get();
     
-    const users = usersSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      // Hide sensitive data in list view
-      // We can add more fields here as needed
-    }));
+    const users = usersSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        // Convert Firestore Timestamps to ISO strings for JSON serialization
+        createdAt: data.createdAt?.toDate?.() ? data.createdAt.toDate().toISOString() : data.createdAt,
+        // Hide sensitive data in list view
+        // We can add more fields here as needed
+      };
+    });
 
     return json({
       users,

@@ -96,6 +96,21 @@
               <div class="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10">
                 <div class="py-1" role="menu" tabindex="-1" onmouseleave={closeAdminDropdown}>
                   <a 
+                    href="/admin" 
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 font-medium"
+                    onclick={closeAdminDropdown}
+                  >
+                    Admin Panel
+                  </a>
+                  <div class="border-t border-gray-100"></div>
+                  <a 
+                    href="/admin/users" 
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onclick={closeAdminDropdown}
+                  >
+                    Users
+                  </a>
+                  <a 
                     href="/admin/newsletters" 
                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     onclick={closeAdminDropdown}
@@ -103,18 +118,33 @@
                     Newsletters
                   </a>
                   <a 
-                    href="/admin/generate" 
-                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onclick={closeAdminDropdown}
-                  >
-                    Generate
-                  </a>
-                  <a 
                     href="/admin/questions" 
                     class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     onclick={closeAdminDropdown}
                   >
                     Questions
+                  </a>
+                  <a 
+                    href="/admin/responses" 
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onclick={closeAdminDropdown}
+                  >
+                    Responses
+                  </a>
+                  <a 
+                    href="/admin/sessions" 
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onclick={closeAdminDropdown}
+                  >
+                    Sessions
+                  </a>
+                  <div class="border-t border-gray-100"></div>
+                  <a 
+                    href="/admin/generate" 
+                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onclick={closeAdminDropdown}
+                  >
+                    Generate Newsletter
                   </a>
                 </div>
               </div>

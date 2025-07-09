@@ -38,6 +38,8 @@ export const GET = withAdminAuth(async (event, user) => {
         return {
           id: doc.id,
           ...newsletterData,
+          // Convert Firestore Timestamps to ISO strings for JSON serialization
+          createdAt: newsletterData.createdAt?.toDate?.() ? newsletterData.createdAt.toDate().toISOString() : newsletterData.createdAt,
           memberCount: membershipsSnapshot.docs.length,
           ownerEmail
         };
